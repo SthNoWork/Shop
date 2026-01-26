@@ -31,6 +31,15 @@
         </div>
     </div>
 
+    <!-- Promotion Section (hidden if no active promotions) -->
+    <div id="promotionSection" class="products-section promotion-section" style="display: none;">
+        <div class="products-header">
+            <h2>🔥 On Sale</h2>
+        </div>
+        <div id="promotionProducts" class="products-grid horizontal-scroll">
+        </div>
+    </div>
+
     <!-- Recently Added Section -->
     <div class="products-section">
         <div class="products-header">
@@ -41,10 +50,10 @@
         </div>
     </div>
 
-    <!-- Popular Products Section -->
-    <div class="products-section">
+    <!-- Popular Products Section (hidden if none featured) -->
+    <div id="popularSection" class="products-section" style="display: none;">
         <div class="products-header">
-            <h2>🔥 Popular</h2>
+            <h2>⭐ Popular</h2>
         </div>
         <div id="popularProducts" class="products-grid horizontal-scroll">
             <p class="loading">Loading...</p>

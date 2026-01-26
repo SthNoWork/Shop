@@ -225,6 +225,22 @@ header h1 {
     font-weight: 600;
 }
 
+.sale-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #e53935;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 700;
+}
+
+.product-card.on-sale {
+    border: 2px solid #e53935;
+}
+
 .product-info {
     padding: 15px;
 }
@@ -242,6 +258,34 @@ header h1 {
     font-size: 1.2em;
     color: #667eea;
     font-weight: bold;
+}
+
+.price-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.price-original {
+    font-size: 0.95em;
+    color: #999;
+    text-decoration: line-through;
+}
+
+.price-sale {
+    font-size: 1.2em;
+    color: #e53935;
+    font-weight: bold;
+}
+
+/* ─── Promotion Section ─────────────────────────────────────────────────────── */
+.promotion-section {
+    margin-bottom: 20px;
+}
+
+.promotion-section .products-header h2 {
+    color: #e53935;
 }
 
 .tag {
@@ -395,6 +439,40 @@ header h1 {
     font-size: 2em;
     color: #667eea;
     font-weight: bold;
+    margin: 0;
+}
+
+.modal-price-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.modal-price-original {
+    font-size: 1.3em;
+    color: #999;
+    text-decoration: line-through;
+}
+
+.modal-price-sale {
+    font-size: 2em;
+    color: #e53935;
+    font-weight: bold;
+}
+
+.modal-discount-badge {
+    background: #e53935;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.promo-ends {
+    color: #e53935;
+    font-size: 0.9em;
     margin: 0;
 }
 

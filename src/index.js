@@ -18,6 +18,8 @@ const categoryFilters = document.getElementById('categoryFilters');
 const productsGrid = document.getElementById('productsGrid');
 const recentProducts = document.getElementById('recentProducts');
 const popularProducts = document.getElementById('popularProducts');
+const promotionSection = document.getElementById('promotionSection');
+const promotionProducts = document.getElementById('promotionProducts');
 const productCount = document.getElementById('productCount');
 const productModal = document.getElementById('productModal');
 const modalBody = document.getElementById('modalBody');
@@ -71,6 +73,7 @@ async function loadProducts() {
         allProducts = await db.selectAll();
         
         // Render all sections
+        renderPromotionProducts();
         renderRecentProducts();
         renderPopularProducts();
         renderProducts(allProducts);
@@ -79,6 +82,38 @@ async function loadProducts() {
         recentProducts.innerHTML = `<p class="error">Failed to load</p>`;
         popularProducts.innerHTML = `<p class="error">Failed to load</p>`;
     }
+}
+
+// ─── Check if product has active promotion ───────────────────────────────────
+function hasActivePromotion(product) {
+    if (!product.discount_percent || product.discount_percent <= 0) return false;
+    if (!product.promotion_end) return false;
+    
+    const now = new Date();
+    const start = product.promotion_start ? new Date(product.promotion_start) : new Date(0);
+    const end = new Date(product.promotion_end);
+    
+    return now >= start && now <= end;
+}
+
+// ─── Get discounted price ────────────────────────────────────────────────────
+function getDiscountedPrice(product) {
+    if (!product.price || !hasActivePromotion(product)) return null;
+    return product.price * (1 - product.discount_percent / 100);
+}
+
+// ─── Render Promotion Products ───────────────────────────────────────────────
+function renderPromotionProducts() {
+    const promos = allProducts.filter(p => hasActivePromotion(p));
+    
+    // Hide entire section if no active promotions
+    if (promos.length === 0) {
+        promotionSection.style.display = 'none';
+        return;
+    }
+    
+    promotionSection.style.display = 'block';
+    promotionProducts.innerHTML = promos.map(product => renderProductCard(product, true, true)).join('');
 }
 
 // ─── Render Recent Products (last 8 by created_at) ───────────────────────────
@@ -95,18 +130,18 @@ function renderRecentProducts() {
     recentProducts.innerHTML = recent.map(product => renderProductCard(product, true)).join('');
 }
 
-// ─── Render Popular Products (top 8 by click_count) ──────────────────────────
+// ─── Render Popular Products (admin marked as featured) ──────────────────────
 function renderPopularProducts() {
-    const popular = [...allProducts]
-        .filter(p => (p.click_count || 0) > 0)
-        .sort((a, b) => (b.click_count || 0) - (a.click_count || 0))
-        .slice(0, 8);
+    const popular = allProducts.filter(p => p.is_featured === true);
     
+    // Hide section if no featured products
+    const popularSection = document.getElementById('popularSection');
     if (popular.length === 0) {
-        popularProducts.innerHTML = '<p class="no-data">No popular products yet</p>';
+        popularSection.style.display = 'none';
         return;
     }
     
+    popularSection.style.display = 'block';
     popularProducts.innerHTML = popular.map(product => renderProductCard(product, true)).join('');
 }
 
@@ -174,7 +209,7 @@ function filterProducts() {
 }
 
 // ─── Render Single Product Card ──────────────────────────────────────────────
-function renderProductCard(product, compact = false) {
+function renderProductCard(product, compact = false, showPromo = false) {
     // Handle multiple images
     const images = Array.isArray(product.image_urls) && product.image_urls.length > 0
         ? product.image_urls
@@ -185,25 +220,41 @@ function renderProductCard(product, compact = false) {
     // Check if first item is video
     const isVideo = mainImage.includes('.mp4') || mainImage.includes('.webm');
     
-    const price = product.price 
-        ? `<p class="price">$${parseFloat(product.price).toFixed(2)}</p>`
-        : '';
+    // Price with discount support
+    const isOnSale = hasActivePromotion(product);
+    const discountedPrice = getDiscountedPrice(product);
+    
+    let priceHtml = '';
+    if (product.price) {
+        if (isOnSale && discountedPrice !== null) {
+            priceHtml = `
+                <div class="price-container">
+                    <span class="price-original">$${parseFloat(product.price).toFixed(2)}</span>
+                    <span class="price-sale">$${discountedPrice.toFixed(2)}</span>
+                </div>
+            `;
+        } else {
+            priceHtml = `<p class="price">$${parseFloat(product.price).toFixed(2)}</p>`;
+        }
+    }
     
     const mediaCount = images.length > 1 ? `<span class="image-count-badge">${images.length}</span>` : '';
+    const saleBadge = isOnSale ? `<span class="sale-badge">-${product.discount_percent}%</span>` : '';
     
     const mediaElement = isVideo 
         ? `<video src="${escapeHtml(mainImage)}" muted loop></video>`
         : `<img src="${escapeHtml(mainImage)}" alt="${escapeHtml(product.title)}" onerror="this.src='https://via.placeholder.com/400x400?text=No+Image'">`;
     
     return `
-        <div class="product-card ${compact ? 'compact' : ''}" onclick="openProductModal('${product.id}')" data-id="${product.id}">
+        <div class="product-card ${compact ? 'compact' : ''} ${isOnSale ? 'on-sale' : ''}" onclick="openProductModal('${product.id}')" data-id="${product.id}">
             <div class="product-image">
                 ${mediaElement}
                 ${mediaCount}
+                ${saleBadge}
             </div>
             <div class="product-info">
                 <h3 class="product-title">${escapeHtml(product.title)}</h3>
-                ${price}
+                ${priceHtml}
             </div>
         </div>
     `;
@@ -226,9 +277,6 @@ window.openProductModal = async function(productId) {
     const product = allProducts.find(p => p.id === productId);
     if (!product) return;
     
-    // Track click (increment click_count)
-    trackProductClick(productId);
-    
     // Handle multiple images
     const images = Array.isArray(product.image_urls) && product.image_urls.length > 0
         ? product.image_urls
@@ -241,9 +289,26 @@ window.openProductModal = async function(productId) {
         ? product.categories.map(cat => `<span class="tag">${escapeHtml(cat)}</span>`).join('')
         : '';
     
-    const price = product.price 
-        ? `<p class="modal-price">$${parseFloat(product.price).toFixed(2)}</p>`
-        : '';
+    // Price with discount support
+    const isOnSale = hasActivePromotion(product);
+    const discountedPrice = getDiscountedPrice(product);
+    
+    let priceHtml = '';
+    if (product.price) {
+        if (isOnSale && discountedPrice !== null) {
+            const endDate = new Date(product.promotion_end).toLocaleDateString();
+            priceHtml = `
+                <div class="modal-price-container">
+                    <span class="modal-price-original">$${parseFloat(product.price).toFixed(2)}</span>
+                    <span class="modal-price-sale">$${discountedPrice.toFixed(2)}</span>
+                    <span class="modal-discount-badge">-${product.discount_percent}% OFF</span>
+                </div>
+                <p class="promo-ends">Sale ends: ${endDate}</p>
+            `;
+        } else {
+            priceHtml = `<p class="modal-price">$${parseFloat(product.price).toFixed(2)}</p>`;
+        }
+    }
     
     const description = product.description 
         ? `<p class="modal-description">${escapeHtml(product.description)}</p>`
@@ -281,11 +346,10 @@ window.openProductModal = async function(productId) {
             </div>
             <div class="modal-info-section">
                 <h2 class="modal-title">${escapeHtml(product.title)}</h2>
-                ${price}
+                ${priceHtml}
                 ${description}
                 <div class="modal-categories">${categories}</div>
                 ${adminNotes}
-                <p class="modal-views">👁 ${product.click_count || 0} views</p>
             </div>
         </div>
     `;
@@ -328,33 +392,6 @@ window.closeModal = function(event) {
     productModal.classList.remove('active');
     document.body.style.overflow = '';
 };
-
-// ─── Track Product Click ─────────────────────────────────────────────────────
-async function trackProductClick(productId) {
-    try {
-        // Use anon key - requires RLS policy to allow update on click_count
-        const response = await fetch(
-            `https://awgairewlkuwxsvfxaqq.supabase.co/rest/v1/rpc/increment_click_count`,
-            {
-                method: 'POST',
-                headers: {
-                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3Z2FpcmV3bGt1d3hzdmZ4YXFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxOTE0NDQsImV4cCI6MjA2NDc2NzQ0NH0.DjTHECIQQCWIjvx5Awp7IzBP3qcHoTkguHy4S8Yovh4',
-                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3Z2FpcmV3bGt1d3hzdmZ4YXFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxOTE0NDQsImV4cCI6MjA2NDc2NzQ0NH0.DjTHECIQQCWIjvx5Awp7IzBP3qcHoTkguHy4S8Yovh4',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ product_id: productId })
-            }
-        );
-        
-        // Update local count for immediate feedback
-        const product = allProducts.find(p => p.id === productId);
-        if (product) {
-            product.click_count = (product.click_count || 0) + 1;
-        }
-    } catch (err) {
-        console.log('Click tracking failed (not critical):', err);
-    }
-}
 
 // ─── Utility Functions ───────────────────────────────────────────────────────
 function escapeHtml(text) {
