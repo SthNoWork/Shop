@@ -252,6 +252,46 @@ header h1 {
     opacity: 0.9;
 }
 
+/* Hide play button overlay on product videos */
+.product-video::-webkit-media-controls-overlay-play-button {
+    display: none !important;
+    opacity: 0 !important;
+}
+
+.product-video::-webkit-media-controls-start-playback-button {
+    display: none !important;
+    opacity: 0 !important;
+}
+
+/* Hide all controls and overlays on videos without controls attribute */
+video:not([controls]) {
+    pointer-events: none; /* Prevent interaction that might show overlays */
+}
+
+video:not([controls])::-webkit-media-controls {
+    display: none !important;
+}
+
+video:not([controls])::-webkit-media-controls-enclosure {
+    display: none !important;
+}
+
+video:not([controls])::-webkit-media-controls-panel {
+    display: none !important;
+}
+
+video:not([controls])::-webkit-media-controls-overlay-play-button {
+    display: none !important;
+}
+
+video:not([controls])::-webkit-media-controls-start-playback-button {
+    display: none !important;
+}
+
+video:not([controls])::-webkit-media-controls-overlay-enclosure {
+    display: none !important;
+}
+
 .image-count-badge {
     position: absolute;
     top: 10px;

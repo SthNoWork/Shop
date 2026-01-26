@@ -11,10 +11,13 @@ const db = new Database('products');
 // ─── State Management ────────────────────────────────────────────────────────
 let allProducts = [];
 let selectedCategories = new Set();
+let allCategoriesWithCounts = [];
+let videoObserver = null;
 
 // ─── DOM Elements ────────────────────────────────────────────────────────────
 const searchInput = document.getElementById('searchInput');
 const categoryFilters = document.getElementById('categoryFilters');
+const categorySearchInput = document.getElementById('categorySearchInput');
 const productsGrid = document.getElementById('productsGrid');
 const recentProducts = document.getElementById('recentProducts');
 const popularProducts = document.getElementById('popularProducts');
@@ -26,17 +29,76 @@ const modalBody = document.getElementById('modalBody');
 
 // ─── Initialize ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+    setupVideoAutoplay();
     await loadProducts();
     await loadCategories();
     setupSearchListener();
     setupKeyboardListener();
 });
 
-// ─── Category Search Input ───────────────────────────────────────────────────
-const categorySearchInput = document.getElementById('categorySearchInput');
+// ─── Helper: Check if URL is video ───────────────────────────────────────────
+function isVideoUrl(url) {
+    if (!url) return false;
+    const lower = url.toLowerCase();
+    return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');
+}
 
-// ─── All Categories with Counts (for filtering) ─────────────────────────────
-let allCategoriesWithCounts = [];
+// ─── Helper: Get product media array ─────────────────────────────────────────
+function getProductMedia(product) {
+    if (Array.isArray(product.image_urls) && product.image_urls.length > 0) {
+        return product.image_urls;
+    }
+    return product.image_url ? [product.image_url] : [];
+}
+
+// ─── Helper: Format price HTML ───────────────────────────────────────────────
+function formatPriceHtml(product, isModal = false) {
+    if (!product.price) return '';
+    
+    const isOnSale = hasActivePromotion(product);
+    const discountedPrice = getDiscountedPrice(product);
+    const price = parseFloat(product.price).toFixed(2);
+    
+    if (isOnSale && discountedPrice !== null) {
+        const salePrice = discountedPrice.toFixed(2);
+        if (isModal) {
+            const endDate = new Date(product.promotion_end).toLocaleDateString();
+            return `
+                <div class="modal-price-container">
+                    <span class="modal-price-original">$${price}</span>
+                    <span class="modal-price-sale">$${salePrice}</span>
+                    <span class="modal-discount-badge">-${product.discount_percent}% OFF</span>
+                </div>
+                <p class="promo-ends">Sale ends: ${endDate}</p>
+            `;
+        }
+        return `
+            <div class="price-container">
+                <span class="price-original">$${price}</span>
+                <span class="price-sale">$${salePrice}</span>
+            </div>
+        `;
+    }
+    
+    return isModal 
+        ? `<p class="modal-price">$${price}</p>`
+        : `<p class="price">$${price}</p>`;
+}
+
+// ─── Video Autoplay Observer ─────────────────────────────────────────────────
+function setupVideoAutoplay() {
+    videoObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const video = entry.target;
+            entry.isIntersecting ? video.play().catch(() => {}) : video.pause();
+        });
+    }, { threshold: 0.5 });
+}
+
+function observeVideos() {
+    if (!videoObserver) return;
+    document.querySelectorAll('.product-card video').forEach(v => videoObserver.observe(v));
+}
 
 // ─── Load Categories ─────────────────────────────────────────────────────────
 async function loadCategories() {
@@ -158,16 +220,16 @@ function getDiscountedPrice(product) {
 
 // ─── Render Promotion Products ───────────────────────────────────────────────
 function renderPromotionProducts() {
-    const promos = allProducts.filter(p => hasActivePromotion(p));
+    const promos = allProducts.filter(hasActivePromotion);
     
-    // Hide entire section if no active promotions
     if (promos.length === 0) {
         promotionSection.style.display = 'none';
         return;
     }
     
     promotionSection.style.display = 'block';
-    promotionProducts.innerHTML = promos.map(product => renderProductCard(product, true, true)).join('');
+    promotionProducts.innerHTML = promos.map(p => renderProductCard(p, true)).join('');
+    setTimeout(observeVideos, 100);
 }
 
 // ─── Render Recent Products (last 8 by created_at, only if within a week) ────
@@ -190,7 +252,8 @@ function renderRecentProducts() {
     }
     
     recentSection.style.display = 'block';
-    recentProducts.innerHTML = recentWithinWeek.map(product => renderProductCard(product, true)).join('');
+    recentProducts.innerHTML = recentWithinWeek.map(p => renderProductCard(p, true)).join('');
+    setTimeout(observeVideos, 100);
 }
 
 // ─── Render Popular Products (admin marked as featured) ──────────────────────
@@ -205,7 +268,8 @@ function renderPopularProducts() {
     }
     
     popularSection.style.display = 'block';
-    popularProducts.innerHTML = popular.map(product => renderProductCard(product, true)).join('');
+    popularProducts.innerHTML = popular.map(p => renderProductCard(p, true)).join('');
+    setTimeout(observeVideos, 100);
 }
 
 // ─── Category Filter Handler ────────────────────────────────────────────────
@@ -333,71 +397,44 @@ function renderProducts(products) {
     }
     
     productsGrid.innerHTML = products.map(product => renderProductCard(product)).join('');
+    setTimeout(observeVideos, 100);
 }
 
 // ─── Open Product Modal ──────────────────────────────────────────────────────
-window.openProductModal = async function(productId) {
+window.openProductModal = function(productId) {
     const product = allProducts.find(p => p.id === productId);
     if (!product) return;
     
-    // Handle multiple images
-    const images = Array.isArray(product.image_urls) && product.image_urls.length > 0
-        ? product.image_urls
-        : (product.image_url ? [product.image_url] : []);
+    const media = getProductMedia(product);
+    const mainMedia = media[0] || 'https://via.placeholder.com/400x400?text=No+Image';
+    const isVideo = isVideoUrl(mainMedia);
     
-    const mainMedia = images.length > 0 ? images[0] : 'https://via.placeholder.com/400x400?text=No+Image';
-    // Check for video (Cloudinary URLs contain /video/ for videos)
-    const isVideo = mainMedia.includes('/video/') || mainMedia.includes('.mp4') || mainMedia.includes('.webm');
-    
-    const categories = product.categories && Array.isArray(product.categories) 
-        ? product.categories.map(cat => `<span class="tag">${escapeHtml(cat)}</span>`).join('')
-        : '';
-    
-    // Price with discount support
-    const isOnSale = hasActivePromotion(product);
-    const discountedPrice = getDiscountedPrice(product);
-    
-    let priceHtml = '';
-    if (product.price) {
-        if (isOnSale && discountedPrice !== null) {
-            const endDate = new Date(product.promotion_end).toLocaleDateString();
-            priceHtml = `
-                <div class="modal-price-container">
-                    <span class="modal-price-original">$${parseFloat(product.price).toFixed(2)}</span>
-                    <span class="modal-price-sale">$${discountedPrice.toFixed(2)}</span>
-                    <span class="modal-discount-badge">-${product.discount_percent}% OFF</span>
-                </div>
-                <p class="promo-ends">Sale ends: ${endDate}</p>
-            `;
-        } else {
-            priceHtml = `<p class="modal-price">$${parseFloat(product.price).toFixed(2)}</p>`;
-        }
-    }
+    const categories = product.categories?.map(cat => 
+        `<span class="tag">${escapeHtml(cat)}</span>`
+    ).join('') || '';
     
     const description = product.description 
-        ? `<p class="modal-description">${escapeHtml(product.description)}</p>`
-        : '';
+        ? `<p class="modal-description">${escapeHtml(product.description)}</p>` : '';
     
     const adminNotes = product.admin_notes 
-        ? `<div class="modal-notes"><strong>Note:</strong> ${escapeHtml(product.admin_notes)}</div>`
-        : '';
+        ? `<div class="modal-notes"><strong>Note:</strong> ${escapeHtml(product.admin_notes)}</div>` : '';
     
     // Main media display
     const mainMediaHtml = isVideo 
-        ? `<video id="modalMainMedia" src="${escapeHtml(mainMedia)}" controls muted loop playsinline preload="auto" class="modal-main-media"></video>`
+        ? `<video id="modalMainMedia" src="${escapeHtml(mainMedia)}" controls autoplay muted loop playsinline class="modal-main-media"></video>`
         : `<img id="modalMainMedia" src="${escapeHtml(mainMedia)}" alt="${escapeHtml(product.title)}" class="modal-main-media">`;
     
     // Gallery thumbnails (only if multiple media)
-    const galleryHtml = images.length > 1 
+    const galleryHtml = media.length > 1 
         ? `<div class="modal-gallery">
-            ${images.map((img, idx) => {
-                const isVid = img.includes('/video/') || img.includes('.mp4') || img.includes('.webm');
+            ${media.map((src, idx) => {
+                const isVid = isVideoUrl(src);
                 return isVid 
-                    ? `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(img)}', this, true)">
-                         <video src="${escapeHtml(img)}" muted playsinline preload="metadata"></video>
+                    ? `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, true)">
+                         <video src="${escapeHtml(src)}" muted playsinline></video>
                          <span class="video-icon">▶</span>
                        </div>`
-                    : `<img src="${escapeHtml(img)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(img)}', this, false)">`;
+                    : `<img src="${escapeHtml(src)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, false)">`;
             }).join('')}
            </div>`
         : '';
@@ -410,7 +447,7 @@ window.openProductModal = async function(productId) {
             </div>
             <div class="modal-info-section">
                 <h2 class="modal-title">${escapeHtml(product.title)}</h2>
-                ${priceHtml}
+                ${formatPriceHtml(product, true)}
                 ${description}
                 <div class="modal-categories">${categories}</div>
                 ${adminNotes}
