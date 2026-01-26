@@ -474,6 +474,7 @@ video:not([controls])::-webkit-media-controls-overlay-enclosure {
     cursor: pointer;
     border: 3px solid transparent;
     transition: all 0.2s;
+    position: relative; /* ensure absolute icons are positioned inside the thumb */
 }
 
 .gallery-thumb:hover {
@@ -500,6 +501,13 @@ video:not([controls])::-webkit-media-controls-overlay-enclosure {
     color: white;
     font-size: 16px;
     text-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+/* Hide play overlay on devices with fine pointer (desktop) to avoid misplaced icon */
+@media (hover: hover) and (pointer: fine) {
+    .gallery-thumb .video-icon {
+        display: none !important;
+    }
 }
 
 .modal-info-section {

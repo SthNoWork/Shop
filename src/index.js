@@ -457,6 +457,17 @@ window.openProductModal = function(productId) {
     
     productModal.classList.add('active');
     document.body.style.overflow = 'hidden';
+    // If main media is a video, unmute it and play (user-initiated open)
+    const modalVideo = document.getElementById('modalMainMedia');
+    if (modalVideo && modalVideo.tagName === 'VIDEO') {
+        try {
+            modalVideo.muted = false;
+            // play may return a promise; call it and ignore rejections
+            modalVideo.play().catch(() => {});
+        } catch (e) {
+            // ignore
+        }
+    }
 };
 
 // ─── Change Modal Media ──────────────────────────────────────────────────────
@@ -474,7 +485,8 @@ window.changeModalMedia = function(src, thumb, isVideo) {
         video.id = 'modalMainMedia';
         video.src = src;
         video.controls = true;
-        video.muted = true; // Safari requires muted for autoplay
+        // User clicked the thumbnail — allow sound
+        video.muted = false;
         video.autoplay = true;
         video.loop = true;
         video.playsInline = true; // Safari iOS requires this
@@ -493,6 +505,14 @@ window.changeModalMedia = function(src, thumb, isVideo) {
 // ─── Close Modal ─────────────────────────────────────────────────────────────
 window.closeModal = function(event) {
     if (event && event.target !== productModal) return;
+    // Mute and pause modal video if present
+    const modalVideo = document.getElementById('modalMainMedia');
+    if (modalVideo && modalVideo.tagName === 'VIDEO') {
+        try {
+            modalVideo.muted = true;
+            modalVideo.pause();
+        } catch (e) {}
+    }
     productModal.classList.remove('active');
     document.body.style.overflow = '';
 };
