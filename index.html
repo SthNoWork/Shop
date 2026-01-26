@@ -25,6 +25,14 @@
 
         <div class="filter-container">
             <h3>Filter by Categories:</h3>
+            <div class="category-search-container">
+                <input 
+                    type="text" 
+                    id="categorySearchInput" 
+                    placeholder="Search categories..." 
+                    class="category-search-input"
+                >
+            </div>
             <div id="categoryFilters" class="category-filters">
                 <p class="loading">Loading categories...</p>
             </div>
@@ -40,8 +48,8 @@
         </div>
     </div>
 
-    <!-- Recently Added Section -->
-    <div class="products-section">
+    <!-- Recently Added Section (hidden if none added within a week) -->
+    <div id="recentSection" class="products-section" style="display: none;">
         <div class="products-header">
             <h2>🆕 Recently Added</h2>
         </div>

@@ -32,35 +32,89 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupKeyboardListener();
 });
 
+// ─── Category Search Input ───────────────────────────────────────────────────
+const categorySearchInput = document.getElementById('categorySearchInput');
+
+// ─── All Categories with Counts (for filtering) ─────────────────────────────
+let allCategoriesWithCounts = [];
+
 // ─── Load Categories ─────────────────────────────────────────────────────────
 async function loadCategories() {
     try {
-        const categories = await db.getUniqueCategories();
+        // Wait for products to load first so we can count them
+        const categoryCounts = {};
         
-        if (categories.length === 0) {
+        // Count products per category
+        allProducts.forEach(product => {
+            if (product.categories && Array.isArray(product.categories)) {
+                product.categories.forEach(cat => {
+                    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+                });
+            }
+        });
+        
+        // Convert to array and sort by count (descending)
+        allCategoriesWithCounts = Object.entries(categoryCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+        
+        if (allCategoriesWithCounts.length === 0) {
             categoryFilters.innerHTML = '<p class="no-data">No categories available</p>';
             return;
         }
 
-        categoryFilters.innerHTML = categories.map(category => `
-            <label class="category-checkbox">
-                <input 
-                    type="checkbox" 
-                    value="${escapeHtml(category)}" 
-                    data-category="${escapeHtml(category)}"
-                >
-                <span>${escapeHtml(category)}</span>
-            </label>
-        `).join('');
-
-        // Add event listeners to checkboxes
-        categoryFilters.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-            checkbox.addEventListener('change', handleCategoryChange);
-        });
+        renderCategories(allCategoriesWithCounts);
+        setupCategorySearchListener();
 
     } catch (err) {
         categoryFilters.innerHTML = `<p class="error">Failed to load categories: ${err.message}</p>`;
     }
+}
+
+// ─── Render Categories ───────────────────────────────────────────────────────
+function renderCategories(categories) {
+    categoryFilters.innerHTML = categories.map(({ name, count }) => `
+        <label class="category-checkbox" data-category-name="${escapeHtml(name.toLowerCase())}">
+            <input 
+                type="checkbox" 
+                value="${escapeHtml(name)}" 
+                data-category="${escapeHtml(name)}"
+                ${selectedCategories.has(name) ? 'checked' : ''}
+            >
+            <span>${escapeHtml(name)}</span>
+            <span class="category-count">(${count})</span>
+        </label>
+    `).join('');
+
+    // Add event listeners to checkboxes
+    categoryFilters.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', handleCategoryChange);
+    });
+}
+
+// ─── Category Search Handler ─────────────────────────────────────────────────
+function setupCategorySearchListener() {
+    categorySearchInput.addEventListener('input', () => {
+        const searchTerm = categorySearchInput.value.toLowerCase().trim();
+        
+        if (!searchTerm) {
+            // Show all categories
+            renderCategories(allCategoriesWithCounts);
+            return;
+        }
+        
+        // Filter categories by search term
+        const filtered = allCategoriesWithCounts.filter(({ name }) => 
+            name.toLowerCase().includes(searchTerm)
+        );
+        
+        if (filtered.length === 0) {
+            categoryFilters.innerHTML = '<p class="no-data">No matching categories</p>';
+            return;
+        }
+        
+        renderCategories(filtered);
+    });
 }
 
 // ─── Load Products ───────────────────────────────────────────────────────────
@@ -116,18 +170,27 @@ function renderPromotionProducts() {
     promotionProducts.innerHTML = promos.map(product => renderProductCard(product, true, true)).join('');
 }
 
-// ─── Render Recent Products (last 8 by created_at) ───────────────────────────
+// ─── Render Recent Products (last 8 by created_at, only if within a week) ────
 function renderRecentProducts() {
-    const recent = [...allProducts]
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    // Filter products added within the last week
+    const recentWithinWeek = [...allProducts]
+        .filter(p => p.created_at && new Date(p.created_at) >= oneWeekAgo)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 8);
     
-    if (recent.length === 0) {
-        recentProducts.innerHTML = '<p class="no-data">No products yet</p>';
+    const recentSection = document.getElementById('recentSection');
+    
+    // Hide entire section if no products within a week
+    if (recentWithinWeek.length === 0) {
+        recentSection.style.display = 'none';
         return;
     }
     
-    recentProducts.innerHTML = recent.map(product => renderProductCard(product, true)).join('');
+    recentSection.style.display = 'block';
+    recentProducts.innerHTML = recentWithinWeek.map(product => renderProductCard(product, true)).join('');
 }
 
 // ─── Render Popular Products (admin marked as featured) ──────────────────────

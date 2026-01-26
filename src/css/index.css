@@ -107,6 +107,42 @@ header h1 {
     color: #667eea;
 }
 
+.category-count {
+    font-size: 0.85em;
+    color: #888;
+    margin-left: 4px;
+}
+
+.category-checkbox input[type="checkbox"]:checked ~ .category-count {
+    color: #667eea;
+}
+
+/* ─── Category Search ───────────────────────────────────────────────────── */
+.category-search-container {
+    margin-bottom: 15px;
+}
+
+.category-search-input {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s;
+    background: #f8f9fa;
+}
+
+.category-search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-search-input::placeholder {
+    color: #aaa;
+}
+
 /* ─── Products Section ──────────────────────────────────────────────────── */
 .products-section {
     max-width: 1200px;
@@ -142,6 +178,9 @@ header h1 {
     overflow-x: auto;
     padding: 10px 0 20px 0;
     scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    /* Reset grid properties */
+    grid-template-columns: unset;
 }
 
 .horizontal-scroll::-webkit-scrollbar {
@@ -167,7 +206,7 @@ header h1 {
     scroll-snap-align: start;
 }
 
-/* ─── Products Grid ─────────────────────────────────────────────────────── */
+/* ─── Products Grid (Vertical for All Products) ─────────────────────────── */
 .products-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
