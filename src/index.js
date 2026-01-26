@@ -464,9 +464,8 @@ window.openProductModal = function(productId) {
             ${media.map((src, idx) => {
                 const isVid = isVideoUrl(src);
                 if (isVid) {
-                    const poster = getVideoPoster(src);
                     return `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, true)">
-                         <img src="${poster || 'https://via.placeholder.com/100x100?text=Video'}" alt="Video thumbnail" style="width:100%;height:100%;object-fit:cover;display:block;">
+                         <video src="${escapeHtml(src)}" autoplay muted loop playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;display:block;"></video>
                        </div>`;
                 }
                 return `<img src="${escapeHtml(src)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, false)">`;
