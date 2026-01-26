@@ -280,8 +280,8 @@ function renderProductCard(product, compact = false, showPromo = false) {
     
     const mainImage = images.length > 0 ? images[0] : 'https://via.placeholder.com/400x400?text=No+Image';
     
-    // Check if first item is video
-    const isVideo = mainImage.includes('.mp4') || mainImage.includes('.webm');
+    // Check if first item is video (Cloudinary URLs contain /video/ for videos)
+    const isVideo = mainImage.includes('/video/') || mainImage.includes('.mp4') || mainImage.includes('.webm');
     
     // Price with discount support
     const isOnSale = hasActivePromotion(product);
@@ -346,7 +346,8 @@ window.openProductModal = async function(productId) {
         : (product.image_url ? [product.image_url] : []);
     
     const mainMedia = images.length > 0 ? images[0] : 'https://via.placeholder.com/400x400?text=No+Image';
-    const isVideo = mainMedia.includes('.mp4') || mainMedia.includes('.webm');
+    // Check for video (Cloudinary URLs contain /video/ for videos)
+    const isVideo = mainMedia.includes('/video/') || mainMedia.includes('.mp4') || mainMedia.includes('.webm');
     
     const categories = product.categories && Array.isArray(product.categories) 
         ? product.categories.map(cat => `<span class="tag">${escapeHtml(cat)}</span>`).join('')
@@ -390,7 +391,7 @@ window.openProductModal = async function(productId) {
     const galleryHtml = images.length > 1 
         ? `<div class="modal-gallery">
             ${images.map((img, idx) => {
-                const isVid = img.includes('.mp4') || img.includes('.webm');
+                const isVid = img.includes('/video/') || img.includes('.mp4') || img.includes('.webm');
                 return isVid 
                     ? `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(img)}', this, true)">
                          <video src="${escapeHtml(img)}" muted></video>
