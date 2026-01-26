@@ -305,7 +305,7 @@ function renderProductCard(product, compact = false, showPromo = false) {
     const saleBadge = isOnSale ? `<span class="sale-badge">-${product.discount_percent}%</span>` : '';
     
     const mediaElement = isVideo 
-        ? `<video src="${escapeHtml(mainImage)}" muted loop></video>`
+        ? `<video src="${escapeHtml(mainImage)}" muted loop playsinline preload="metadata"></video>`
         : `<img src="${escapeHtml(mainImage)}" alt="${escapeHtml(product.title)}" onerror="this.src='https://via.placeholder.com/400x400?text=No+Image'">`;
     
     return `
@@ -384,7 +384,7 @@ window.openProductModal = async function(productId) {
     
     // Main media display
     const mainMediaHtml = isVideo 
-        ? `<video id="modalMainMedia" src="${escapeHtml(mainMedia)}" controls autoplay loop class="modal-main-media"></video>`
+        ? `<video id="modalMainMedia" src="${escapeHtml(mainMedia)}" controls muted loop playsinline preload="auto" class="modal-main-media"></video>`
         : `<img id="modalMainMedia" src="${escapeHtml(mainMedia)}" alt="${escapeHtml(product.title)}" class="modal-main-media">`;
     
     // Gallery thumbnails (only if multiple media)
@@ -394,7 +394,7 @@ window.openProductModal = async function(productId) {
                 const isVid = img.includes('/video/') || img.includes('.mp4') || img.includes('.webm');
                 return isVid 
                     ? `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(img)}', this, true)">
-                         <video src="${escapeHtml(img)}" muted></video>
+                         <video src="${escapeHtml(img)}" muted playsinline preload="metadata"></video>
                          <span class="video-icon">▶</span>
                        </div>`
                     : `<img src="${escapeHtml(img)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(img)}', this, false)">`;
@@ -437,8 +437,11 @@ window.changeModalMedia = function(src, thumb, isVideo) {
         video.id = 'modalMainMedia';
         video.src = src;
         video.controls = true;
+        video.muted = true; // Safari requires muted for autoplay
         video.autoplay = true;
         video.loop = true;
+        video.playsInline = true; // Safari iOS requires this
+        video.preload = 'auto';
         video.className = 'modal-main-media';
         oldMedia.replaceWith(video);
     } else {
