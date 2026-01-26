@@ -34,13 +34,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCategories();
     setupSearchListener();
     setupKeyboardListener();
+    setupSwipeToClose();
 });
+
+// ─── Swipe-to-close on touch devices ─────────────────────────────────────────
+function setupSwipeToClose() {
+    let startX = 0, startY = 0, tracking = false;
+
+    productModal.addEventListener('touchstart', (e) => {
+        if (e.touches?.length !== 1) return;
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        tracking = true;
+    }, { passive: true });
+
+    productModal.addEventListener('touchend', (e) => {
+        if (!tracking || !e.changedTouches?.[0]) return;
+        tracking = false;
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        const threshold = window.innerWidth * 0.20;
+        if (Math.abs(dx) > Math.abs(dy) * 1.5 && dx > threshold) {
+            closeModal();
+        }
+    }, { passive: true });
+}
 
 // ─── Helper: Check if URL is video ───────────────────────────────────────────
 function isVideoUrl(url) {
     if (!url) return false;
     const lower = url.toLowerCase();
     return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');
+}
+
+// ─── Helper: Get Cloudinary video poster thumbnail ───────────────────────────
+function getVideoPoster(videoUrl) {
+    if (!videoUrl || !videoUrl.includes('cloudinary.com')) return '';
+    return videoUrl
+        .replace('/video/upload/', '/video/upload/so_0.5,f_jpg,w_100,h_100,c_fill/')
+        .replace(/\.(mp4|webm|mov)$/i, '.jpg');
 }
 
 // ─── Helper: Get product media array ─────────────────────────────────────────
@@ -429,12 +463,13 @@ window.openProductModal = function(productId) {
         ? `<div class="modal-gallery">
             ${media.map((src, idx) => {
                 const isVid = isVideoUrl(src);
-                return isVid 
-                    ? `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, true)">
-                         <video src="${escapeHtml(src)}" muted playsinline></video>
-                         <span class="video-icon">▶</span>
-                       </div>`
-                    : `<img src="${escapeHtml(src)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, false)">`;
+                if (isVid) {
+                    const poster = getVideoPoster(src);
+                    return `<div class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, true)">
+                         <img src="${poster || 'https://via.placeholder.com/100x100?text=Video'}" alt="Video thumbnail" style="width:100%;height:100%;object-fit:cover;display:block;">
+                       </div>`;
+                }
+                return `<img src="${escapeHtml(src)}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="changeModalMedia('${escapeHtml(src)}', this, false)">`;
             }).join('')}
            </div>`
         : '';
