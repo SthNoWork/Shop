@@ -1,6 +1,6 @@
 // supabase.js
 // Read-only Supabase database class for public product catalog
-// Uses anon key with RLS - only SELECT access to products (admin_notes hidden)
+// Uses anon key with RLS - only SELECT access to products table
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://awgairewlkuwxsvfxaqq.supabase.co';
